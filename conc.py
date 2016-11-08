@@ -1,9 +1,8 @@
-
+# Author: Saravanan Dayalan
 
 import csv
 import numpy
 import statistics
-import itertools
 
 def get_groups(filename):
     groups = {}
