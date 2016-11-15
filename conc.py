@@ -115,6 +115,7 @@ def subtract_reg(metlist):
 
 
 def stats(metlist, groups):
+    print(metlist)
     for group in groups:
         print("In group ",group)
         size = len(metlist)
@@ -142,9 +143,9 @@ def linreg(metlist):
     print("\n\n***** Calculating linear regression model for each metabolite... *****\n")
 #    print(metlist)
     size = len(metlist)
-    num_met = len(metlist[0])-4
+    num_met = len(metlist[0])-3
     sum = 0
-    met_count = 4
+    met_count = 3
     conc_li = []
 
     for j in range(0, num_met): # cycling through metabolites
@@ -169,8 +170,8 @@ def conc_cal(metlist, conc_li):
     print("\n\n***** Calculating concentrations... *****\n")
 
     size = len(metlist) # calculates the number of samples!
-    num_met = len(metlist[0])-4
-    met_count = 4
+    num_met = len(metlist[0])-3
+    met_count = 3
     Sub_mat = [[None]*(size-1)]
     iscol = []
     Sub_mat = numpy.array(Sub_mat)
@@ -209,7 +210,7 @@ def conc_cal(metlist, conc_li):
     for l in range(1, len(metlist)):
         temp = []
         init_li = []
-        init_li = [metlist[l][0],metlist[l][1], metlist[l][2], '']
+        init_li = [metlist[l][0],metlist[l][1], metlist[l][2]]
         temp.append(init_li + tr_Sub_mat_li[l-1])
         fin_sub_li.extend(temp)
 
@@ -246,7 +247,7 @@ print("\n")
 print("***** Reporting CVs of Peak Areas... *****\n")
 print("Data has been IS normalised, Reagent Blank subtracted\n")
 stats(reg_sub_li, groups)
-'''
+
 # Calculating the linear regression model for each metabolite.
 conc_li = linreg(reg_sub_li)
 
@@ -261,4 +262,4 @@ print("***** Reporting CVs of Concentrations... *****\n")
 print("Data has been IS normalised, Reagent Blank subtracted\n")
 stats(fin_conc_val, groups)
 
-'''
+
