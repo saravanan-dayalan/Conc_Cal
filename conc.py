@@ -1,8 +1,9 @@
-# Author: Saravanan Dayalan
+
 
 import csv
 import numpy
 import statistics
+import itertools
 
 def get_groups(filename):
     groups = {}
@@ -45,6 +46,7 @@ def is_normalise(filename):
 
     isnorm = []
     isnorm = intarr[:,0]/intarr[:,0].min()
+    print(isnorm)
     finalarr = numpy.array(isnorm)
 
     for i in range(1, len(intarr[0])):
@@ -81,17 +83,17 @@ def subtract_reg(metlist):
         j = j + met_count
 
         Reg_li = []
-        Reg_max = 0
+        Reg_avg = 0
         for i in range(1,size): # cycling through the number of samples
             if metlist[i][2] == 'R':
                 Reg_li.append(metlist[i][j])
-        Reg_max = max(Reg_li)
+        Reg_avg = statistics.mean(Reg_li)
 
         Sub_li = []
         for i in range(1,size): # cycling through the number of samples
             sub_val = 0
             if(metlist[i][j] != 0):
-                sub_val = metlist[i][j] - Reg_max
+                sub_val = metlist[i][j] - Reg_avg
             Sub_li.append(sub_val)
 
         Sub_li_arr = numpy.array([Sub_li])     
@@ -116,9 +118,9 @@ def stats(metlist, groups):
     for group in groups:
         print("In group ",group)
         size = len(metlist)
-        num_met = len(metlist[0])-4
+        num_met = len(metlist[0])-3
         sum = 0
-        met_count = 4
+        met_count = 3
         for j in range(0, num_met): # cycling through metabolites
             j = j + met_count
             sum = 0
@@ -127,7 +129,13 @@ def stats(metlist, groups):
                 if group == metlist[i][2]:
                     sum = sum + metlist[i][j]
                     li.append(metlist[i][j])
-            print("CV of", metlist[0][j], ": ", statistics.stdev(li)/statistics.mean(li)*100) 
+            try:
+                print("CV of", metlist[0][j], ": ", statistics.stdev(li)/statistics.mean(li)*100)
+            except ZeroDivisionError:
+                print("\n Warning: The sum of the following list is 0 causing a Div by 0. Therefore skipping calculating stats for this group.")
+                print(li)
+                print("\n")
+            
 
 
 def linreg(metlist):
@@ -224,6 +232,10 @@ for i in isnorm[0]:
     print(i)
 print("\n")
 
+print("\n CVs after internal standard normalisation")
+stats(isnorm[0], groups)
+
+
 # Calling the reagent blank subtraction method.
 reg_sub_li = subtract_reg(isnorm[0])
 for i in reg_sub_li:
@@ -234,7 +246,7 @@ print("\n")
 print("***** Reporting CVs of Peak Areas... *****\n")
 print("Data has been IS normalised, Reagent Blank subtracted\n")
 stats(reg_sub_li, groups)
-
+'''
 # Calculating the linear regression model for each metabolite.
 conc_li = linreg(reg_sub_li)
 
@@ -249,4 +261,4 @@ print("***** Reporting CVs of Concentrations... *****\n")
 print("Data has been IS normalised, Reagent Blank subtracted\n")
 stats(fin_conc_val, groups)
 
-
+'''
