@@ -4,6 +4,7 @@ import csv
 import numpy
 import statistics
 import itertools
+import xlsxwriter
 
 def get_groups(filename):
     groups = {}
@@ -32,7 +33,6 @@ def group_count(filename, groups):
 
             
 def is_normalise(filename):
-    print("\n***** Normalising metabolites to Internal Standard... *****\n")
     mat = []
     with open(filename, 'r') as fp:
         reader = csv.reader(fp)
@@ -46,7 +46,6 @@ def is_normalise(filename):
 
     isnorm = []
     isnorm = intarr[:,0]/intarr[:,0].min()
-    print(isnorm)
     finalarr = numpy.array(isnorm)
 
     for i in range(1, len(intarr[0])):
@@ -70,8 +69,6 @@ def is_normalise(filename):
 
 
 def subtract_reg(metlist):
-    print("***** Subtracting reagent blanks... *****\n")
-
     size = len(metlist) # calculates the number of samples!
     num_met = len(metlist[0])-3
     met_count = 3
@@ -114,10 +111,16 @@ def subtract_reg(metlist):
     return(fin_sub_li)
 
 
-def stats(metlist, groups):
-    print(metlist)
+def stats(metlist, groups, workbook, text):
+    worksheet = workbook.add_worksheet()
+    worksheet.write(0, 0, text)
+    worksheet.write(1, 0, "")
+    out_count = 1
     for group in groups:
-        print("In group ",group)
+        out_count = out_count + 1
+        op_text = "In group " + group
+        worksheet.write(out_count, 0, op_text)
+        out_count = out_count + 1
         size = len(metlist)
         num_met = len(metlist[0])-3
         sum = 0
@@ -125,23 +128,27 @@ def stats(metlist, groups):
         for j in range(0, num_met): # cycling through metabolites
             j = j + met_count
             sum = 0
-            li = []
+            li = []            
             for i in range(1,size): # cycling through the number of samples in each group
                 if group == metlist[i][2]:
                     sum = sum + metlist[i][j]
                     li.append(metlist[i][j])
             try:
-                print("CV of", metlist[0][j], ": ", statistics.stdev(li)/statistics.mean(li)*100)
+#                op_text = "CV of" + metlist[0][j] + ": " + str(statistics.stdev(li)/statistics.mean(li)*100)
+                worksheet.write(out_count, 0, metlist[0][j])  
+                worksheet.write(out_count, 1, statistics.stdev(li)/statistics.mean(li)*100)               
+                #print("CV of", metlist[0][j], ": ", statistics.stdev(li)/statistics.mean(li)*100)
             except ZeroDivisionError:
-                print("\n Warning: The sum of the following list is 0 causing a Div by 0. Therefore skipping calculating stats for this group.")
-                print(li)
-                print("\n")
+                worksheet.write(out_count, 0, metlist[0][j])  
+                worksheet.write(out_count, 1, "NA") 
+                #print("\n Warning: sum = 0 causing a ZeroDivisionError. Therefore skipping calculating stats for this metabolite.")
+                #print(li)
+                #rint("\n")
+            out_count = out_count + 1
             
 
 
 def linreg(metlist):
-    print("\n\n***** Calculating linear regression model for each metabolite... *****\n")
-#    print(metlist)
     size = len(metlist)
     num_met = len(metlist[0])-3
     sum = 0
@@ -161,14 +168,12 @@ def linreg(metlist):
                     auc_li.append(metlist[i][j])                    
         spike_li = list(map(float, spike_li))
         fit = numpy.polyfit(spike_li, auc_li, 1)
-        print("For ", metlist[0][j], " m = ",fit[0]," c = ",fit[1])
+        #print("For ", metlist[0][j], " m = ",fit[0]," c = ",fit[1])
         conc_li.append((metlist[0][j], fit[0], fit[1]))
     return(conc_li)
 
 
 def conc_cal(metlist, conc_li):
-    print("\n\n***** Calculating concentrations... *****\n")
-
     size = len(metlist) # calculates the number of samples!
     num_met = len(metlist[0])-3
     met_count = 3
@@ -177,20 +182,19 @@ def conc_cal(metlist, conc_li):
     Sub_mat = numpy.array(Sub_mat)
    
     for j in range(0, num_met): # cycling through metabolites
-        m = 0
-        c = 0
-        x = 0
-        y = 0
+
         j = j + met_count
 
         Sub_li = []
         for i in range(1,size): # cycling through the number of samples
             for k in conc_li:
-#                print(k, metlist[0][j])
+                m = 0
+                c = 0
+                x = 0
+                y = 0              
                 if k[0] == metlist[0][j]:                    
                     m = k[1]
                     c = k[2]
-#                    print(m, c)
                     break
                 
             y = metlist[i][j]
@@ -217,49 +221,113 @@ def conc_cal(metlist, conc_li):
     return(fin_sub_li)
 
 
-    
+def write_rawdata(workbook, filename):
+    worksheet = workbook.add_worksheet()
+    worksheet.write(0, 0, 'Raw Data')
+    with open(filename, 'r') as fp:
+        reader = csv.reader(fp)
+        x = 1
+        y = 0        
+        for line in reader:     
+            for j in range(0, len(line)):   
+                if (x == 1):
+                    worksheet.write(x, y, line[j])
+                else:
+                    if (y == 0 or y == 2):
+                        worksheet.write(x, y, line[j])
+                    else:
+                        worksheet.write_number(x, y, float(line[j]))
+                y = y + 1
+            x = x + 1
+            y = 0
+
+                
+
+def write_data(workbook, reader, text):
+    worksheet = workbook.add_worksheet()
+    worksheet.write(0, 0, text)
+    x = 1
+    y = 0        
+    for line in reader:
+        #print(line)
+        for j in range(0, len(line)):   
+            if (x == 1):
+                worksheet.write(x, y, line[j])
+            else:
+                if (y == 0 or y == 2):
+                    worksheet.write(x, y, line[j])
+                else:
+                    worksheet.write_number(x, y, float(line[j]))
+            y = y + 1
+        x = x + 1
+        y = 0
+
+
+
+
 #############################################################################################
 
 # main()            
 
-filename = "input.csv"
+path = "/Users/sdayalan/Code/Proj1/Test_2/"
+
+filename = path + "input.csv"
+opfile = path + "out.xlsx"
+
+workbook = xlsxwriter.Workbook(opfile)
+write_rawdata(workbook, filename)
+
+print("\nReading input file...")
 
 groups = get_groups(filename)
 groups = group_count(filename, groups)
 
 # Calling the internal standard normalising method.
 isnorm = is_normalise(filename)
-for i in isnorm[0]:
-    print(i)
-print("\n")
+text = "IS Normalised Data"
+write_data(workbook, isnorm[0], text)
 
-print("\n CVs after internal standard normalisation")
-stats(isnorm[0], groups)
+print("\n\nPerforming Internal Standard Normalisation...")
 
+text = "CVs after Internal Standard Normalisation"
+stats(isnorm[0], groups, workbook, text)
+
+print("\n\nCalculating CVs...")
 
 # Calling the reagent blank subtraction method.
 reg_sub_li = subtract_reg(isnorm[0])
-for i in reg_sub_li:
-    print(i)
-print("\n")
+text = "IS Normalised, Reagent Blank Subtracted Data"
+write_data(workbook, reg_sub_li, text)
 
-# Calculating CVs of each metabolite in each group.
-print("***** Reporting CVs of Peak Areas... *****\n")
-print("Data has been IS normalised, Reagent Blank subtracted\n")
-stats(reg_sub_li, groups)
+print("\n\nPerforming Reagent Blank Subtraction...")
+
+text = "CVs after Internal standard Normalisation and Reagent Blank Subtraction"
+stats(reg_sub_li, groups, workbook, text)
+
+print("\n\nCalculating CVs...")
 
 # Calculating the linear regression model for each metabolite.
 conc_li = linreg(reg_sub_li)
 
+print("\n\nCalculating Linear Regression Models...")
+
 # Calculating concentrations for metabolites
 fin_conc_val = conc_cal(reg_sub_li, conc_li)
-for i in fin_conc_val:
-    print(i)
-print("\n")
 
-# Calculating CVs of each metabolite in each group.
-print("***** Reporting CVs of Concentrations... *****\n")
-print("Data has been IS normalised, Reagent Blank subtracted\n")
-stats(fin_conc_val, groups)
+print("\n\nCalculating Concentrations...")
+
+text = "IS Normalised, Reagent Blank Subtracted CONCENTRATION Data"
+write_data(workbook, fin_conc_val, text)
+
+
+text = "CVs of Concentrations after Internal standard Normalisation and Reagent Blank Subtraction"
+stats(fin_conc_val, groups, workbook, text)
+
+print("\n\nCalculating CVs...")
+
+print("\n\nWriting all output to out.xlsx\n\n\n")
+
+workbook.close()
+
 
 
